@@ -19,26 +19,44 @@ import {WidgetModel} from '../../../../modules/dashboard/shared/dashboard-widget
 import {DeploymentsService} from '../../../../modules/processes/deployments/shared/deployments.service';
 import {DashboardService} from '../../../../modules/dashboard/shared/dashboard.service';
 import {DashboardResponseMessageModel} from '../../../../modules/dashboard/shared/dashboard-response-message.model';
-import {AbstractControl, FormArray, FormBuilder, FormControl, FormGroup} from '@angular/forms';
+import {FormArray, FormBuilder, FormControl, FormGroup} from '@angular/forms';
 import {ExportService} from '../../../../modules/exports/shared/export.service';
 import {ExportModel, ExportResponseModel, ExportValueModel} from '../../../../modules/exports/shared/export.model';
-import {ChartsExportMeasurementModel, ChartsExportVAxesModel} from '../shared/charts-export-properties.model';
+import {
+    ChartsExportMeasurementModel,
+    ChartsExportVAxesModel,
+    DeviceWithServiceModel
+} from '../shared/charts-export-properties.model';
 import {SelectionModel} from '@angular/cdk/collections';
 import {ChartsExportRangeTimeTypeEnum} from '../shared/charts-export-range-time-type.enum';
 import {MatTableDataSource} from '@angular/material/table';
 import {MAT_DIALOG_DATA, MatDialogRef} from '@angular/material/dialog';
-import {of} from 'rxjs';
-import {map} from 'rxjs/operators';
-import {Observable} from 'rxjs/index';
+import {forkJoin, Observable, of} from 'rxjs';
+import {
+    DeviceTypeContentVariableModel,
+    DeviceTypeModel
+} from '../../../../modules/metadata/device-types-overview/shared/device-type.model';
+import {DeviceInstancesService} from '../../../../modules/devices/device-instances/shared/device-instances.service';
+import {DeviceTypeService} from '../../../../modules/metadata/device-types-overview/shared/device-type.service';
+import {DeviceInstancesPermSearchModel} from '../../../../modules/devices/device-instances/shared/device-instances.model';
+import {MatOption} from '@angular/material/core';
+import {map} from 'rxjs/internal/operators';
+
+
+interface ContentVariableWithPath extends DeviceTypeContentVariableModel {
+    path: string;
+}
 
 @Component({
     templateUrl: './charts-export-edit-dialog.component.html',
     styleUrls: ['./charts-export-edit-dialog.component.css'],
 })
 export class ChartsExportEditDialogComponent implements OnInit {
+    widget: WidgetModel = {} as WidgetModel;
 
     formGroupController = new FormGroup({});
     exportList: ChartsExportMeasurementModel[] = [];
+    deviceServiceList: Map<string, DeviceWithServiceModel[]> = new Map();
     dashboardId: string;
     widgetId: string;
     chartTypes = ['LineChart', 'ColumnChart', 'ScatterChart'];
@@ -52,17 +70,32 @@ export class ChartsExportEditDialogComponent implements OnInit {
     selection = new SelectionModel<ChartsExportVAxesModel>(true, []);
     exportTags: Map<string, Map<string, {value: string; parent: string}[]>> = new Map();
 
+    STRING = 'https://schema.org/Text';
+    INTEGER = 'https://schema.org/Integer';
+    FLOAT = 'https://schema.org/Float';
+    BOOLEAN = 'https://schema.org/Boolean';
+    STRUCTURE = 'https://schema.org/StructuredValue';
+    LIST = 'https://schema.org/ItemList';
+    typeMap = new Map<string, string>();
+
     constructor(private dialogRef: MatDialogRef<ChartsExportEditDialogComponent>,
                 private deploymentsService: DeploymentsService,
                 private dashboardService: DashboardService,
                 private exportService: ExportService,
                 private _formBuilder: FormBuilder,
+                private deviceInstancesService: DeviceInstancesService,
+                private deviceTypeService: DeviceTypeService,
                 @Inject(MAT_DIALOG_DATA) data: { dashboardId: string, widgetId: string }) {
         this.dashboardId = data.dashboardId;
         this.widgetId = data.widgetId;
     }
 
     ngOnInit() {
+        this.typeMap.set(this.STRING, 'string');
+        this.typeMap.set(this.INTEGER, 'int');
+        this.typeMap.set(this.FLOAT, 'float');
+        this.typeMap.set(this.BOOLEAN, 'bool');
+
         this.initFormGroup({
             name: '', properties: {
                 chartType: '',
@@ -71,18 +104,37 @@ export class ChartsExportEditDialogComponent implements OnInit {
                 timeRangeType: '',
             }
         } as WidgetModel);
-        this.getWidgetData();
+        const obs: Observable<any>[] = [];
+        obs.push(this.getWidgetData());
+        obs.push(this.initDeployments());
+        forkJoin(obs).subscribe(() => {
+            if (this.widget.properties.exports !== undefined) {
+                this.widget.properties.exports = this.widget.properties.exports
+                    ?.filter(selected => this.exportList.findIndex(existing => existing.id === selected.id) !== -1);
+
+                // exports values or names might have changed
+                this.widget.properties.exports?.forEach(selected => {
+                    const latestExisting = this.exportList.find(existing => existing.id === selected.id);
+                    if (latestExisting !== undefined && latestExisting.name !== undefined && latestExisting.id !== undefined) {
+                        selected.values = latestExisting.values;
+                        selected.name = latestExisting.name;
+                    }
+                });
+            }
+            this.initFormGroup(this.widget);
+            this.selectionChange(this.widget.properties.exports || []);
+            this.selectionDeviceChange(this.widget.properties.devices || []);
+        });
     }
 
-    getWidgetData() {
-        this.dashboardService.getWidget(this.dashboardId, this.widgetId).subscribe((widget: WidgetModel) => {
+    getWidgetData(): Observable<any> {
+        return this.dashboardService.getWidget(this.dashboardId, this.widgetId).pipe(map((widget: WidgetModel) => {
+            this.widget = widget;
             this.setDefaultValues(widget);
             if (widget.properties.vAxes) {
                 widget.properties.vAxes.forEach(row => this.selection.select(row));
             }
-            this.initDeployments(widget);
-            this.initFormGroup(widget);
-        });
+        }));
     }
 
     initFormGroup(widget: WidgetModel): void {
@@ -94,6 +146,7 @@ export class ChartsExportEditDialogComponent implements OnInit {
                 chartType: widget.properties.chartType,
                 curvedFunction: this._formBuilder.control(widget.properties.curvedFunction),
                 exports: this._formBuilder.control(widget.properties.exports),
+                devices: this._formBuilder.control(widget.properties.devices),
                 timeRangeType: widget.properties.timeRangeType,
                 time: this._formBuilder.group({
                     last: widget.properties.time ? widget.properties.time.last : '',
@@ -124,7 +177,7 @@ export class ChartsExportEditDialogComponent implements OnInit {
         });
     }
 
-    initDeployments(widget: WidgetModel) {
+    initDeployments(): Observable<any> {
         this.exportService.getExports('', 9999, 0, 'name', 'asc').subscribe((exports: (ExportResponseModel | null)) => {
             if (exports !== null) {
                 exports.instances.forEach((exportModel: ExportModel) => {
@@ -132,27 +185,71 @@ export class ChartsExportEditDialogComponent implements OnInit {
                         this.exportList.push({id: exportModel.ID, name: exportModel.Name, values: exportModel.Values});
                     }
                 });
-                // remove deleted exports
-                if (widget.properties.exports !== undefined) {
-                    widget.properties.exports = widget.properties.exports
-                        .filter(selected => exports.instances.findIndex(existing => existing.ID === selected.id) !== -1);
-
-                    // exports values or names might have changed
-                    widget.properties.exports.forEach(selected => {
-                        const latestExisting = exports.instances.find(existing => existing.ID === selected.id);
-                        if (latestExisting !== undefined && latestExisting.Name !== undefined && latestExisting.ID !== undefined) {
-                            selected.values = latestExisting.Values;
-                            selected.name = latestExisting.Name;
-                        }
-                    });
-                }
-                this.selectionChange(widget.properties.exports || []);
             }
         });
+
+        const obs: Observable<any>[] = [];
+        obs.push(this.deviceTypeService.getFullDeviceTypes());
+        obs.push(this.deviceInstancesService.getDeviceInstances('', -1, 0, 'name', 'asc'));
+        return forkJoin(obs).pipe(map(o => {
+            let deviceTypes: DeviceTypeModel[] = [];
+            let deviceInstances: DeviceInstancesPermSearchModel[] = [];
+            o.forEach((res: any[]) => {
+                if (!Array.isArray(res) || res.length === 0) {
+                    return;
+                }
+                if (res[0]['services'] !== undefined) {
+                    deviceTypes = res;
+                } else {
+                    deviceInstances = res;
+                }
+            });
+            deviceInstances.forEach(d => {
+                const type = deviceTypes.find(dt => dt.id === d.device_type_id);
+                if (type === undefined) {
+                    console.error('Got device, but no matching device type', d);
+                    return;
+                }
+                const deviceWithServices: DeviceWithServiceModel[] = [];
+                const dws: DeviceWithServiceModel = d as DeviceWithServiceModel;
+                type.services.forEach(service => {
+                    dws.service = service;
+                    deviceWithServices.push(JSON.parse(JSON.stringify(dws)));
+                });
+                if (deviceWithServices.length === 0) {
+                    return;
+                }
+                if (this.deviceServiceList.has(d.name)) {
+                    const existing = this.deviceServiceList.get(d.name);
+                    if (existing === undefined) {
+                        return; // Never
+                    }
+                    this.deviceServiceList.delete(d.name);
+                    this.deviceServiceList.set(d.name + ' (' + existing[0].id + ')', existing);
+                    this.deviceServiceList.set(d.name + ' (' + deviceWithServices[0].id + ')', existing);
+                } else {
+                    this.deviceServiceList.set(d.name, deviceWithServices);
+                }
+            });
+        }));
+    }
+
+    getDeviceServiceTrigger(d: MatOption | MatOption[] | undefined): string {
+        if (d === undefined) {
+            return '';
+        }
+        if (!Array.isArray(d)) {
+            d = [d];
+        }
+        return d.map(o => o.group.label + ': ' + o.value.service.name).join(', ');
     }
 
     compare(a: any, b: any): boolean {
         return a && b && a.id === b.id && a.name === b.name;
+    }
+
+    compareDeviceWithService(a: DeviceWithServiceModel, b: DeviceWithServiceModel): boolean {
+        return a && b && a.id === b.id && a.service.id === b.service.id;
     }
 
     compareFilterTypes(a: string, b: string): boolean {
@@ -184,11 +281,11 @@ export class ChartsExportEditDialogComponent implements OnInit {
             this.dataSource.data.forEach(row => this.selection.select(row));
     }
 
-    selectionChange(selectedExports: ChartsExportMeasurementModel[]) {
+    async selectionChange(selectedExports: ChartsExportMeasurementModel[]) {
         const newData: ChartsExportVAxesModel[] = [];
         const newSelection: ChartsExportVAxesModel[] = [];
         selectedExports.forEach((selectedExport: ChartsExportMeasurementModel) => {
-            selectedExport.values.forEach((value: ExportValueModel) => {
+            selectedExport.values?.forEach((value: ExportValueModel) => {
                 const newVAxis: ChartsExportVAxesModel = {
                     instanceId: value.InstanceID,
                     exportName: selectedExport.name,
@@ -212,13 +309,83 @@ export class ChartsExportEditDialogComponent implements OnInit {
                 }
                 // Add duplicates of this export value
                 const duplicates = this.selection.selected.filter(item => item.isDuplicate && item.instanceId === newVAxis.instanceId &&
-                        item.exportName === newVAxis.exportName &&
-                        item.valueName === newVAxis.valueName &&
-                        item.valueType === newVAxis.valueType);
+                    item.exportName === newVAxis.exportName &&
+                    item.valueName === newVAxis.valueName &&
+                    item.valueType === newVAxis.valueType);
                 newSelection.push(...duplicates);
                 newData.push(...duplicates);
             });
         });
+        // Add devices
+        newData.push(...this.dataSource.data.filter(v => v.deviceId !== undefined));
+        newSelection.push(...this.selection.selected.filter(v => v.deviceId !== undefined));
+        this.dataSource.data = newData;
+        this.selection.clear();
+        newSelection.forEach(row => this.selection.select(row));
+    }
+
+    parseContentVariable(c: DeviceTypeContentVariableModel, prefix: string): ContentVariableWithPath[] {
+        if (prefix.length > 0) {
+            prefix += '.';
+        }
+        prefix += c.name;
+        const cvwp: ContentVariableWithPath = c as ContentVariableWithPath;
+        cvwp.path = prefix;
+        if (c.type !== this.STRUCTURE) {
+            return [cvwp];
+        }
+        const res:  ContentVariableWithPath[] = [];
+        c.sub_content_variables?.forEach(sub => res.push(...this.parseContentVariable(sub, prefix)));
+        return res;
+    }
+
+    selectionDeviceChange(selectedDeviceServices: DeviceWithServiceModel[]) {
+        const newData: ChartsExportVAxesModel[] = [];
+        const newSelection: ChartsExportVAxesModel[] = [];
+        selectedDeviceServices.forEach((selectedDeviceService: DeviceWithServiceModel) => {
+            selectedDeviceService.service.outputs.forEach(o => {
+                const paths = this.parseContentVariable(o.content_variable, '');
+                paths.forEach(p => {
+                    const type = this.typeMap.get(p.type || '');
+                    if (type === undefined) {
+                        console.error('Unsupported type', p.type);
+                        return;
+                    }
+                    const newVAxis: ChartsExportVAxesModel = {
+                        exportName: selectedDeviceService.name,
+                        deviceId: selectedDeviceService.id,
+                        serviceId: selectedDeviceService.service.id,
+                        valueName: p.path,
+                        valueType: type,
+                        color: '',
+                        math: '',
+                        displayOnSecondVAxis: false,
+                        tagSelection: [],
+                    };
+                    const index = this.selection.selected.findIndex(
+                        item => item.deviceId === newVAxis.deviceId &&
+                            item.serviceId === newVAxis.serviceId &&
+                            item.valueName === newVAxis.valueName &&
+                            item.valueType === newVAxis.valueType);
+                    if (index === -1) {
+                        newData.push(newVAxis);
+                    } else {
+                        newSelection.push(this.selection.selected[index]);
+                        newData.push(this.selection.selected[index]);
+                    }
+                    // Add duplicates of this export value
+                    const duplicates = this.selection.selected.filter(item => item.isDuplicate && item.deviceId === newVAxis.deviceId &&
+                        item.serviceId === newVAxis.serviceId &&
+                        item.valueName === newVAxis.valueName &&
+                        item.valueType === newVAxis.valueType);
+                    newSelection.push(...duplicates);
+                    newData.push(...duplicates);
+                });
+            });
+        });
+        // Add exports
+        newData.push(...this.dataSource.data.filter(v => v.instanceId !== undefined));
+        newSelection.push(...this.selection.selected.filter(v => v.instanceId !== undefined));
         this.dataSource.data = newData;
         this.selection.clear();
         newSelection.forEach(row => this.selection.select(row));
@@ -301,7 +468,7 @@ export class ChartsExportEditDialogComponent implements OnInit {
     }
 
     getTags(element: ChartsExportVAxesModel): Map<string, { value: string, parent: string }[]> {
-        return this.exportTags.get(element.instanceId) || new Map();
+        return this.exportTags.get(element.instanceId || '') || new Map();
     }
 
     private preloadExportTags(exportId: string): Observable<any> {
@@ -332,5 +499,9 @@ export class ChartsExportEditDialogComponent implements OnInit {
 
     getTagValue(a: { value: string, parent: string }): string {
         return a.parent + '!' + a.value;
+    }
+
+    trackByIndex(index: number, _: any) {
+        return index;
     }
 }

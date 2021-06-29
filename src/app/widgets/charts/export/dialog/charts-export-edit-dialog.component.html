@@ -47,14 +47,22 @@
 
             <mat-form-field color="accent">
                 <mat-label>Choose Exports</mat-label>
-                <senergy-select-search [required]="true" [multiple]="true"
+                <senergy-select-search [multiple]="true"
                                        [compareWith]="compare" formControlName="exports"
                                        (selectionChange)="selectionChange($event.value)"
-                                       [options]="exportList" useOptionViewProperty="name">
+                                       [options]="exportList" useOptionViewProperty="name"
+                                       [disabled]="(formGroupController.get('properties.devices')?.value || []).length > 0">
                 </senergy-select-search>
-                <mat-error *ngIf="exports.invalid">
-                    Please make a selection!
-                </mat-error>
+            </mat-form-field>
+            <mat-form-field color="accent">
+                <mat-label>Choose Devices/Services</mat-label>
+                <senergy-select-search [multiple]="true"
+                                       [compareWith]="compareDeviceWithService" formControlName="devices"
+                                       (selectionChange)="selectionDeviceChange($event.value)"
+                                       [options]="deviceServiceList" useOptionViewProperty="service.name"
+                                       [disabled]="(formGroupController.get('properties.exports')?.value || []).length > 0"
+                [getTriggerValue]="getDeviceServiceTrigger">
+                </senergy-select-search>
             </mat-form-field>
             <table>
                 <tr>
@@ -65,9 +73,6 @@
                                     {{timeRange}}
                                 </mat-option>
                             </mat-select>
-                            <mat-error *ngIf="timeRangeType.errors">
-                                Please choose a time Range Type!
-                            </mat-error>
                         </mat-form-field>
                     </td>
                     <td fxFlex="66%" *ngIf="timeRangeType.value === timeRangeEnum.Relative" formGroupName="time">
@@ -159,7 +164,7 @@
 
     </div>
 
-    <table mat-table [dataSource]="dataSource">
+    <table mat-table [dataSource]="dataSource" [trackBy]="trackByIndex">
 
         <ng-container matColumnDef="select">
             <th mat-header-cell *matHeaderCellDef>
@@ -236,7 +241,7 @@
                 <mat-menu #menu>
                     <div mat-menu-item (click)="$event.stopPropagation()">
                         <span class="from-to">Default</span>
-                        -->
+
                         <mat-form-field class="from-to" color="accent">
                             <mat-label>To</mat-label>
                             <input matInput placeholder="To" type="number" [(ngModel)]="element.conversionDefault">
@@ -247,7 +252,7 @@
                             <mat-label>From</mat-label>
                             <input matInput placeholder="From" type="text" [(ngModel)]="element.__from">
                         </mat-form-field>
-                        -->
+
                         <mat-form-field class="from-to" color="accent">
                             <mat-label>To</mat-label>
                             <input matInput placeholder="To" type="number" [(ngModel)]="element.__to">
@@ -258,7 +263,7 @@
                     </div>
                     <div *ngFor="let rule of element.conversions; let index=index" mat-menu-item (click)="$event.stopPropagation()">
                         <span class="from-to">{{rule.from}}</span>
-                        -->
+
                         <span class="from-to">{{rule.to}}</span>
                         <button mat-icon-button (click)="deleteConversion(element, index, $event)" disableRipple>
                             <mat-icon color="warn">delete</mat-icon>

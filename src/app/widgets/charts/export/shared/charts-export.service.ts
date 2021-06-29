@@ -31,7 +31,7 @@ import {ChartsExportRequestPayloadGroupModel} from './charts-export-request-payl
 import {ChartsExportRangeTimeTypeEnum} from './charts-export-range-time-type.enum';
 import {ExportDataService} from '../../../shared/export-data.service';
 import {
-    QueriesRequestElementModel,
+    QueriesRequestElementModel, QueriesRequestElementModelV3,
     QueriesRequestFilterModel,
     QueriesRequestTimeModel
 } from '../../../shared/export-data.model';
@@ -83,20 +83,28 @@ export class ChartsExportService {
         if (widgetProperties.group && widgetProperties.group.type !== undefined && widgetProperties.group.type !== '') {
             group = widgetProperties.group;
         }
-        const elements: QueriesRequestElementModel[] = [];
+        const elements: QueriesRequestElementModel[] | QueriesRequestElementModelV3[] = [];
 
         if (widgetProperties.vAxes) {
             widgetProperties.vAxes.forEach((vAxis: ChartsExportVAxesModel) => {
-                const newField: QueriesRequestElementModel = {
-                    measurement: vAxis.instanceId,
-                    columns: [{
-                        name: vAxis.valueName,
-                        math: vAxis.math !== '' ? vAxis.math : undefined,
-                        groupType: group?.type !== null ? group?.type : undefined,
-                    }],
-                    groupTime: group?.time !== '' ? group?.time : undefined,
-                    time: time,
-                };
+                let newField: QueriesRequestElementModel | QueriesRequestElementModelV3;
+                if (vAxis.deviceId !== undefined) {
+                    newField = {
+                        deviceId: vAxis.deviceId,
+                        serviceId: vAxis.serviceId,
+                    } as QueriesRequestElementModelV3;
+                } else {
+                    newField = {
+                        measurement: vAxis.instanceId || '',
+                    } as QueriesRequestElementModel;
+                }
+                newField.columns = [{
+                    name: vAxis.valueName,
+                    math: vAxis.math !== '' ? vAxis.math : undefined,
+                    groupType: group?.type !== null ? group?.type : undefined,
+                }];
+                newField.groupTime = group?.time !== '' ? group?.time : undefined;
+                newField.time = time;
                 const filters: QueriesRequestFilterModel[] = [];
                 vAxis.tagSelection?.forEach(tagFilter => {
                     filters.push({column: tagFilter.split('!')[0], type: '=', value: tagFilter.split('!')[1]});
@@ -114,7 +122,10 @@ export class ChartsExportService {
                 elements.push(newField);
             });
         }
-
+        // tslint:disable-next-line:no-non-null-assertion
+        if ((widgetProperties.vAxes || []).length > 0 && widgetProperties.vAxes![0]!.deviceId !== undefined) {
+            return this.exportDataService.queryAsTableV3(elements);
+        }
         return this.exportDataService.queryAsTable(elements);
     }
 
@@ -137,8 +148,10 @@ export class ChartsExportService {
     }
 
     private setData(series: any[][], vAxes: ChartsExportVAxesModel[]): ChartDataTableModel {
-        const indices: {index: number, conversions: { from: string, to: number }[],
-            conversionDefault?: number, type: string}[] = [];
+        const indices: {
+            index: number, conversions: { from: string, to: number }[],
+            conversionDefault?: number, type: string
+        }[] = [];
         const header: string[] = ['time'];
         if (vAxes) {
             vAxes.forEach((vAxis: ChartsExportVAxesModel, index) => {

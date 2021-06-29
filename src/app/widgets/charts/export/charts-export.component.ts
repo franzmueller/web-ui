@@ -104,7 +104,7 @@ export class ChartsExportComponent implements OnInit, OnDestroy {
 
     private checkConfiguration() {
         if (this.widget.properties.exports) {
-            if (this.widget.properties.exports.length < 1) {
+            if ((this.widget.properties.vAxes || []).length < 1) {
                 this.configureWidget = true;
             }
         } else {

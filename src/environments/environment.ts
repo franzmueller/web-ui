@@ -38,7 +38,9 @@ export const environment = {
     exportService: 'http://localhost',
     brokerExportServiceUrl: 'http://localhost',
     brokerExportBroker: 'localhost:1883',
+    /** @deprecated **/
     influxAPIURL: 'http://localhost',
+    timescaleAPIURL: 'http://localhost',
     pipelineRegistryUrl: 'http://localhost',
     flowRepoUrl: 'http://localhost',
     flowEngineUrl: 'http://localhost',

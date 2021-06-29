@@ -26,7 +26,7 @@ export interface LastValuesRequestElementModel {
     math?: string;
 }
 
-export interface QueriesRequestElementModel {
+export interface QueriesRequestBaseElementModel {
     columns: QueriesRequestColumnModel[];
     filters?: QueriesRequestFilterModel[];
     groupTime?: string;
@@ -35,6 +35,17 @@ export interface QueriesRequestElementModel {
     time?: QueriesRequestTimeModel;
     orderColumnIndex?: number; // must not be set if querying as table
     orderDirection?: 'asc' | 'desc'; // must not be set if querying as table
+}
+
+/** @deprecated **/
+export interface QueriesRequestElementModel extends QueriesRequestBaseElementModel {
+    measurement: string;
+}
+
+export interface QueriesRequestElementModelV3 extends QueriesRequestBaseElementModel {
+    exportId?: string;
+    deviceId?: string;
+    serviceId?: string;
 }
 
 export interface QueriesRequestColumnModel {

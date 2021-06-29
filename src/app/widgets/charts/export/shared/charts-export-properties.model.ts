@@ -19,6 +19,8 @@ import {
     ChartsExportRequestPayloadGroupModel,
     ChartsExportRequestPayloadTimeModel
 } from './charts-export-request-payload.model';
+import {DeviceInstancesPermSearchModel} from '../../../../modules/devices/device-instances/shared/device-instances.model';
+import {DeviceTypeServiceModel} from '../../../../modules/metadata/device-types-overview/shared/device-type.model';
 
 export interface ChartsExportPropertiesModel {
     chartType?: string;
@@ -30,6 +32,7 @@ export interface ChartsExportPropertiesModel {
     vAxisLabel?: string;
     secondVAxisLabel?: string;
     exports?: ChartsExportMeasurementModel[];
+    devices?: DeviceWithServiceModel[];
     measurement?: ChartsExportMeasurementModel; // deprecated
     math?: string;
     curvedFunction?: boolean;
@@ -44,9 +47,15 @@ export interface ChartsExportMeasurementModel {
     values: ExportValueModel [];
 }
 
+export interface DeviceWithServiceModel extends DeviceInstancesPermSearchModel {
+    service: DeviceTypeServiceModel;
+}
+
 export interface ChartsExportVAxesModel {
-    instanceId: string;
-    exportName: string;
+    instanceId?: string;
+    deviceId?: string;
+    serviceId?: string;
+    exportName?: string;
     valueName: string;
     valueAlias?: string;
     valueType: string;

@@ -17,7 +17,12 @@
 import {Injectable} from '@angular/core';
 import {Observable} from 'rxjs';
 import {environment} from '../../../environments/environment';
-import {LastValuesRequestElementModel, QueriesRequestElementModel, TimeValuePairModel} from './export-data.model';
+import {
+    LastValuesRequestElementModel,
+    QueriesRequestElementModel,
+    QueriesRequestElementModelV3,
+    TimeValuePairModel
+} from './export-data.model';
 import {HttpClient} from '@angular/common/http';
 
 @Injectable({
@@ -40,6 +45,17 @@ export class ExportDataService {
         : Observable<any[][] | null> {
 
         return this.http.post<any[][] | null>(environment.influxAPIURL + '/v2/queries?format=table&order_column_index='
+            + orderColumnIndex + '&order_direction=' + orderDirection, query);
+    }
+
+    queryV3(query: QueriesRequestElementModelV3[]): Observable<any[][][]> {
+        return this.http.post<any[][][]>(environment.timescaleAPIURL + '/queries?format=per_query', query);
+    }
+
+    queryAsTableV3(query: QueriesRequestElementModelV3[], orderColumnIndex: Number = 0, orderDirection: 'asc' | 'desc' = 'desc')
+        : Observable<any[][] | null> {
+
+        return this.http.post<any[][] | null>(environment.timescaleAPIURL + '/queries?format=table&order_column_index='
             + orderColumnIndex + '&order_direction=' + orderDirection, query);
     }
 }

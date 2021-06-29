@@ -124,6 +124,14 @@ export class DeviceTypeService {
         );
     }
 
+    getFullDeviceTypes(): Observable<DeviceTypeModel[]> {
+        return this.http.get<DeviceTypeModel[]>(
+            environment.deviceRepoUrl + '/device-types?').pipe(
+            map(resp => resp || []),
+            catchError(this.errorHandlerService.handleError(DeviceTypeService.name, 'getDeviceTypes(search)', []))
+        );
+    }
+
     getDeviceTypeSkeleton(typeId: string, serviceId: string): Observable<BpmnSkeletonModel | null> {
         return this.http.get<BpmnSkeletonModel>
         (environment.iotRepoUrl + '/devicetype/skeleton/' + encodeURIComponent(typeId) + '/' + encodeURIComponent(serviceId)).pipe(
