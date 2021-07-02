@@ -18,7 +18,7 @@ import {Injectable} from '@angular/core';
 import {Observable} from 'rxjs';
 import {environment} from '../../../environments/environment';
 import {
-    LastValuesRequestElementModel,
+    LastValuesRequestElementModel, LastValuesRequestElementModelV3,
     QueriesRequestElementModel,
     QueriesRequestElementModelV3,
     TimeValuePairModel
@@ -33,14 +33,17 @@ export class ExportDataService {
     constructor(private http: HttpClient) {
     }
 
+    /** @deprecated **/
     getLastValues(requestElements: LastValuesRequestElementModel[]): Observable<TimeValuePairModel[]> {
         return this.http.post<TimeValuePairModel[]>(environment.influxAPIURL + '/v2/last-values', requestElements);
     }
 
+    /** @deprecated **/
     query(query: QueriesRequestElementModel[]): Observable<any[][][]> {
         return this.http.post<any[][][]>(environment.influxAPIURL + '/v2/queries?format=per_query', query);
     }
 
+    /** @deprecated **/
     queryAsTable(query: QueriesRequestElementModel[], orderColumnIndex: Number = 0, orderDirection: 'asc' | 'desc' = 'desc')
         : Observable<any[][] | null> {
 
@@ -57,5 +60,9 @@ export class ExportDataService {
 
         return this.http.post<any[][] | null>(environment.timescaleAPIURL + '/queries?format=table&order_column_index='
             + orderColumnIndex + '&order_direction=' + orderDirection, query);
+    }
+
+    getLastValuesV3(requestElements: LastValuesRequestElementModelV3[]): Observable<TimeValuePairModel[]> {
+        return this.http.post<TimeValuePairModel[]>(environment.timescaleAPIURL + '/v3/last-values', requestElements);
     }
 }

@@ -23,7 +23,7 @@ import {MultiValueEditDialogComponent} from '../dialog/multi-value-edit-dialog.c
 import {WidgetModel} from '../../../modules/dashboard/shared/dashboard-widget.model';
 import {DashboardManipulationEnum} from '../../../modules/dashboard/shared/dashboard-manipulation.enum';
 import {ErrorHandlerService} from '../../../core/services/error-handler.service';
-import {LastValuesRequestElementModel} from '../../shared/export-data.model';
+import {LastValuesRequestElementModel, LastValuesRequestElementModelV3} from '../../shared/export-data.model';
 import {ExportDataService} from '../../shared/export-data.service';
 
 @Injectable({
@@ -58,16 +58,16 @@ export class MultiValueService {
     getValues(widget: WidgetModel): Observable<WidgetModel> {
         return new Observable<WidgetModel>((observer) => {
             if (widget.properties.multivaluemeasurements) {
-                const requestPayload: LastValuesRequestElementModel[] = [];
+                const requestPayload: LastValuesRequestElementModelV3[] = [];
                 const measurements = widget.properties.multivaluemeasurements;
                 measurements.forEach((measurement: MultiValueMeasurement) => {
                     requestPayload.push({
-                        measurement: measurement.export.id,
+                        exportId: measurement.export.id,
                         columnName: measurement.column.Name,
                         math: measurement.math
                     });
                 });
-                this.exportDataService.getLastValues(requestPayload).subscribe(pairs => {
+                this.exportDataService.getLastValuesV3(requestPayload).subscribe(pairs => {
                     measurements.forEach((_, i) => {
                         measurements[i].data = pairs[i].value;
                         if (measurements[i].data == null && measurements[i].data !== 0 && measurements[i].type !== 'Boolean') {

@@ -30,7 +30,7 @@ import {HttpClient} from '@angular/common/http';
 import {ChartsExportModel} from '../../charts/export/shared/charts-export.model';
 import {ChartsExportRequestPayloadModel} from '../../charts/export/shared/charts-export-request-payload.model';
 import {ExportDataService} from '../../shared/export-data.service';
-import {LastValuesRequestElementModel} from '../../shared/export-data.model';
+import {LastValuesRequestElementModel, LastValuesRequestElementModelV3} from '../../shared/export-data.model';
 
 @Injectable({
     providedIn: 'root'
@@ -65,21 +65,21 @@ export class EnergyPredictionService {
             const m = widget.properties.measurement;
             const columns = widget.properties.columns || {} as EnergyPredictionColumnModel;
             if (m) {
-                const requestPayload: LastValuesRequestElementModel[] = [];
+                const requestPayload: LastValuesRequestElementModelV3[] = [];
 
                 requestPayload.push({
-                    measurement: m.id,
+                    exportId: m.id,
                     columnName: columns.prediction,
                     math: widget.properties.math,
                 });
                 requestPayload.push({
-                    measurement: m.id,
+                    exportId: m.id,
                     columnName: columns.predictionTotal,
                     math: widget.properties.math,
                 });
-                requestPayload.push({measurement: m.id, columnName: columns.timestamp});
+                requestPayload.push({exportId: m.id, columnName: columns.timestamp});
 
-                this.exportDataService.getLastValues(requestPayload).subscribe(pairs => {
+                this.exportDataService.getLastValuesV3(requestPayload).subscribe(pairs => {
                     if (pairs.length !== 3) {
                         observer.error('incomplete result');
                         observer.complete();

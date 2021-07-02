@@ -26,6 +26,14 @@ export interface LastValuesRequestElementModel {
     math?: string;
 }
 
+export interface LastValuesRequestElementModelV3 {
+    exportId?: string;
+    deviceId?: string;
+    serviceId?: string;
+    columnName: string;
+    math?: string;
+}
+
 export interface QueriesRequestBaseElementModel {
     columns: QueriesRequestColumnModel[];
     filters?: QueriesRequestFilterModel[];

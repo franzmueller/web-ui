@@ -20,7 +20,7 @@ import {ExportModel, ExportValueBaseModel} from '../shared/export.model';
 import {ActivatedRoute} from '@angular/router';
 import {ExportService} from '../shared/export.service';
 import {ExportDataService} from '../../../widgets/shared/export-data.service';
-import {LastValuesRequestElementModel} from '../../../widgets/shared/export-data.model';
+import {LastValuesRequestElementModelV3} from '../../../widgets/shared/export-data.model';
 import {map} from 'rxjs/operators';
 import {Observable} from 'rxjs';
 import {BrokerExportService} from '../shared/broker-export.service';
@@ -47,7 +47,7 @@ export class ExportDetailsComponent implements OnInit {
     export = {} as ExportModel;
     displayedColumns: string[] = ['Name', 'Path', 'Type', 'LastValue', 'LastTimeStamp'];
     lastValuesReady = false;
-    lastValuesRequestElementModels: LastValuesRequestElementModel[] = [];
+    lastValuesRequestElementModels: LastValuesRequestElementModelV3[] = [];
     showPassword = false;
 
     constructor(private route: ActivatedRoute,
@@ -80,7 +80,7 @@ export class ExportDetailsComponent implements OnInit {
                 this.export?.Values?.forEach(value => {
                         if (this.export?.Measurement !== undefined) {
                             this.lastValuesRequestElementModels.push({
-                                measurement: this.export?.Measurement,
+                                exportId: this.export?.Measurement,
                                 columnName: value.Name,
                                 math: undefined
                             });
@@ -103,7 +103,7 @@ export class ExportDetailsComponent implements OnInit {
     }
 
     private getLatestValues(): Observable<void> {
-        return this.exportDataService.getLastValues(this.lastValuesRequestElementModels).pipe(map(pairs => {
+        return this.exportDataService.getLastValuesV3(this.lastValuesRequestElementModels).pipe(map(pairs => {
             this.export.Values.forEach((_, index) => {
                 this.export.Values[index].LastValue = pairs[index].value;
                 this.export.Values[index].LastTimeStamp = '' + pairs[index].time;
