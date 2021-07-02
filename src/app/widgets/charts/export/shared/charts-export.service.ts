@@ -83,28 +83,22 @@ export class ChartsExportService {
         if (widgetProperties.group && widgetProperties.group.type !== undefined && widgetProperties.group.type !== '') {
             group = widgetProperties.group;
         }
-        const elements: QueriesRequestElementModel[] | QueriesRequestElementModelV3[] = [];
+        const elements: QueriesRequestElementModelV3[] = [];
 
         if (widgetProperties.vAxes) {
             widgetProperties.vAxes.forEach((vAxis: ChartsExportVAxesModel) => {
-                let newField: QueriesRequestElementModel | QueriesRequestElementModelV3;
-                if (vAxis.deviceId !== undefined) {
-                    newField = {
-                        deviceId: vAxis.deviceId,
-                        serviceId: vAxis.serviceId,
-                    } as QueriesRequestElementModelV3;
-                } else {
-                    newField = {
-                        measurement: vAxis.instanceId || '',
-                    } as QueriesRequestElementModel;
-                }
-                newField.columns = [{
-                    name: vAxis.valueName,
-                    math: vAxis.math !== '' ? vAxis.math : undefined,
-                    groupType: group?.type !== null ? group?.type : undefined,
-                }];
-                newField.groupTime = group?.time !== '' ? group?.time : undefined;
-                newField.time = time;
+                const newField: QueriesRequestElementModelV3 = {
+                    exportId: vAxis.instanceId,
+                    deviceId: vAxis.deviceId,
+                    serviceId: vAxis.serviceId,
+                    columns: [{
+                        name: vAxis.valueName,
+                        math: vAxis.math !== '' ? vAxis.math : undefined,
+                        groupType: group?.type !== null ? group?.type : undefined,
+                    }],
+                    groupTime: group?.time !== '' ? group?.time : undefined,
+                    time: time,
+                };
                 const filters: QueriesRequestFilterModel[] = [];
                 vAxis.tagSelection?.forEach(tagFilter => {
                     filters.push({column: tagFilter.split('!')[0], type: '=', value: tagFilter.split('!')[1]});
@@ -122,11 +116,7 @@ export class ChartsExportService {
                 elements.push(newField);
             });
         }
-        // tslint:disable-next-line:no-non-null-assertion
-        if ((widgetProperties.vAxes || []).length > 0 && widgetProperties.vAxes![0]!.deviceId !== undefined) {
-            return this.exportDataService.queryAsTableV3(elements);
-        }
-        return this.exportDataService.queryAsTable(elements);
+        return this.exportDataService.queryAsTableV3(elements);
     }
 
     getChartData(widget: WidgetModel): Observable<ChartsModel | ErrorModel> {

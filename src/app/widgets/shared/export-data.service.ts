@@ -63,6 +63,6 @@ export class ExportDataService {
     }
 
     getLastValuesV3(requestElements: LastValuesRequestElementModelV3[]): Observable<TimeValuePairModel[]> {
-        return this.http.post<TimeValuePairModel[]>(environment.timescaleAPIURL + '/v3/last-values', requestElements);
+        return this.http.post<TimeValuePairModel[]>(environment.timescaleAPIURL + '/last-values', requestElements);
     }
 }

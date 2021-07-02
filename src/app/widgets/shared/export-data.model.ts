@@ -39,7 +39,6 @@ export interface QueriesRequestBaseElementModel {
     filters?: QueriesRequestFilterModel[];
     groupTime?: string;
     limit?: number;
-    measurement: string;
     time?: QueriesRequestTimeModel;
     orderColumnIndex?: number; // must not be set if querying as table
     orderDirection?: 'asc' | 'desc'; // must not be set if querying as table
