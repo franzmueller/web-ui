@@ -20,23 +20,27 @@
     <senergy-widget-spinner [show]="!ready"></senergy-widget-spinner>
 
     <div fxLayout="column" [formGroup]="form" *ngIf="ready">
-        <table>
+        <table class="full-width">
             <tr>
-                <mat-form-field color="accent">
-                    <mat-label>Name</mat-label>
-                    <input type="text" matInput placeholder="Name" formControlName="name">
-                </mat-form-field>
+                <td colspan="2">
+                    <mat-form-field color="accent" class="full-width">
+                        <mat-label>Name</mat-label>
+                        <input type="text" matInput placeholder="Name" formControlName="name">
+                    </mat-form-field>
+                </td>
             </tr>
             <tr>
-                <mat-form-field color="accent" formGroupName="properties">
-                    <mat-label>Choose Export/Device/Service</mat-label>
-                    <senergy-select-search
-                            formControlName="exportDeviceService"
-                            [compareWith]="compare"
-                            [options]="exportDeviceServiceOptions"
-                            [getOptionViewValue]="getExportDeviceServiceOptionViewValue">
-                    </senergy-select-search>
-                </mat-form-field>
+                <td colspan="2">
+                    <mat-form-field color="accent" formGroupName="properties" class="full-width">
+                        <mat-label>Choose Export/Device/Service</mat-label>
+                        <senergy-select-search
+                                formControlName="exportDeviceService"
+                                [compareWith]="compare"
+                                [options]="exportDeviceServiceOptions"
+                                [getOptionViewValue]="getExportDeviceServiceOptionViewValue">
+                        </senergy-select-search>
+                    </mat-form-field>
+                </td>
             </tr>
             <tr>
                 <td>
