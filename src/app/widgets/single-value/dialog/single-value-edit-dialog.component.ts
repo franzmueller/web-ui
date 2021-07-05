@@ -15,19 +15,25 @@
  */
 
 import {Component, Inject, OnInit} from '@angular/core';
-import {FormControl} from '@angular/forms';
-import {Observable} from 'rxjs';
-import {map, startWith} from 'rxjs/internal/operators';
+import {FormBuilder} from '@angular/forms';
+import {forkJoin, Observable} from 'rxjs';
+import {map} from 'rxjs/internal/operators';
 import {WidgetModel} from '../../../modules/dashboard/shared/dashboard-widget.model';
-import {ChartsExportMeasurementModel} from '../../charts/export/shared/charts-export-properties.model';
+import {
+    ChartsExportMeasurementModel,
+    DeviceWithServiceModel
+} from '../../charts/export/shared/charts-export-properties.model';
 import {DeploymentsService} from '../../../modules/processes/deployments/shared/deployments.service';
-import {ExportModel, ExportResponseModel, ExportValueModel} from '../../../modules/exports/shared/export.model';
+import {ExportModel, ExportResponseModel} from '../../../modules/exports/shared/export.model';
 import {DashboardService} from '../../../modules/dashboard/shared/dashboard.service';
 import {ExportService} from '../../../modules/exports/shared/export.service';
 import {DashboardResponseMessageModel} from '../../../modules/dashboard/shared/dashboard-response-message.model';
 import {MAT_DIALOG_DATA, MatDialogRef} from '@angular/material/dialog';
-import {MatAutocompleteSelectedEvent} from '@angular/material/autocomplete';
-import {ChartsExportRequestPayloadGroupModel} from "../../charts/export/shared/charts-export-request-payload.model";
+import {DeviceTypeModel} from '../../../modules/metadata/device-types-overview/shared/device-type.model';
+import {DeviceInstancesPermSearchModel} from '../../../modules/devices/device-instances/shared/device-instances.model';
+import {DeviceInstancesService} from '../../../modules/devices/device-instances/shared/device-instances.service';
+import {DeviceTypeService} from '../../../modules/metadata/device-types-overview/shared/device-type.service';
+import {ExportDataService} from '../../shared/export-data.service';
 
 
 @Component({
@@ -35,74 +41,163 @@ import {ChartsExportRequestPayloadGroupModel} from "../../charts/export/shared/c
     styleUrls: ['./single-value-edit-dialog.component.css'],
 })
 export class SingleValueEditDialogComponent implements OnInit {
+    form = this.fb.group({
+        id: '',
+        name: '',
+        type: '',
+        properties: this.fb.group({
+            group: this.fb.group({
+                time: '',
+                type: undefined,
+            }),
+            exportDeviceService: undefined,
+            type: '',
+            math: '',
+            threshold: 64,
+            unit: '',
+            format: '',
+            path: '',
+        })
+    });
 
-    formControl = new FormControl('');
-    exports: ChartsExportMeasurementModel[] = [];
-    filteredExports: Observable<ChartsExportMeasurementModel[]> = new Observable();
     dashboardId: string;
     widgetId: string;
     widget: WidgetModel = {} as WidgetModel;
-    vAxisValues: ExportValueModel[] = [];
+    exportDeviceServiceOptions: Map<string, DeviceWithServiceModel[] | ChartsExportMeasurementModel[]> = new Map();
+    pathOptions: string[] = [];
     disableSave = false;
-    groupTypes = ['mean', 'sum', 'count', 'median', 'min', 'max', 'first', 'last', 'difference-first', 'difference-last', 'difference-min', 'difference-max', 'difference-count', 'difference-mean', 'difference-sum', 'difference-median'];
-
-    vAxisLabel = '';
-    name = '';
-    type = '';
-    format = '';
-    threshold = 128;
-    math = '';
-    group: ChartsExportRequestPayloadGroupModel = {time: '', type: ''};
+    groupTypes: string[] = [];
+    ready = false;
 
     constructor(private dialogRef: MatDialogRef<SingleValueEditDialogComponent>,
                 private deploymentsService: DeploymentsService,
                 private dashboardService: DashboardService,
                 private exportService: ExportService,
+                private deviceInstancesService: DeviceInstancesService,
+                private deviceTypeService: DeviceTypeService,
+                private fb: FormBuilder,
+                private exportDataService: ExportDataService,
                 @Inject(MAT_DIALOG_DATA) data: { dashboardId: string, widgetId: string }) {
         this.dashboardId = data.dashboardId;
         this.widgetId = data.widgetId;
     }
 
     ngOnInit() {
-        this.getWidgetData();
-    }
-
-    getWidgetData() {
-        this.dashboardService.getWidget(this.dashboardId, this.widgetId).subscribe((widget: WidgetModel) => {
-            this.widget = widget;
-            this.vAxisLabel = widget.properties.vAxisLabel ? widget.properties.vAxisLabel : this.vAxisLabel;
-            this.name = widget.name;
-            this.type = widget.properties.type ? widget.properties.type : this.type;
-            this.format =  widget.properties.format ? widget.properties.format : this.format;
-            this.threshold = widget.properties.threshold ? widget.properties.threshold : this.threshold;
-            this.math = widget.properties.math ? widget.properties.math : this.math;
-            this.formControl.setValue(this.widget.properties.measurement || '');
-            this.group = widget.properties.group ? widget.properties.group : this.group;
-            this.initDeployments();
-        });
-    }
-
-    initDeployments() {
-        this.exportService.getExports('', 9999, 0, 'name', 'asc').subscribe((exports: (ExportResponseModel | null)) => {
-            if (exports !== null) {
-                exports.instances.forEach((exportModel: ExportModel) => {
-                    if (exportModel.ID !== undefined && exportModel.Name !== undefined) {
-                        this.exports.push({id: exportModel.ID, name: exportModel.Name, values: exportModel.Values});
-                        if (this.widget.properties.vAxis) {
-                            if (this.widget.properties.vAxis.InstanceID === exportModel.ID) {
-                                this.vAxisValues = exportModel.Values;
-                            }
-                        }
-                    }
-                });
-                this.filteredExports = this.formControl.valueChanges
-                    .pipe(
-                        startWith<string | ChartsExportMeasurementModel>(''),
-                        map(value => typeof value === 'string' ? value : value.name),
-                        map(name => name ? this._filter(name) : this.exports.slice())
-                    );
+        this.groupTypes = this.exportDataService.getGroupTypes();
+        this.form.get('properties.format')?.valueChanges.subscribe(format => {
+            if (format === 'String') {
+                if (this.form.get('properties.format')?.enabled) {
+                    this.form.get('properties.format')?.disable();
+                }
+            } else {
+                if (this.form.get('properties.format')?.disabled) {
+                    this.form.get('properties.format')?.enable();
+                }
             }
         });
+        this.form.get('properties.exportDeviceService')?.valueChanges.subscribe(exportDeviceService => {
+            this.pathOptions = [];
+            this.form.get('properties.path')?.setValue('');
+            if (exportDeviceService === undefined || exportDeviceService === null) {
+                return;
+            }
+            if ((exportDeviceService as DeviceWithServiceModel).service !== undefined) {
+                (exportDeviceService as DeviceWithServiceModel).service.outputs.forEach(o => {
+                    this.pathOptions.push(...this.exportDataService.parseContentVariable(o.content_variable, '').map(x => x.path));
+                });
+            } else {
+                this.pathOptions.push(...(exportDeviceService as ChartsExportMeasurementModel).values.map(x => x.Path));
+            }
+        });
+        const obs: Observable<any>[] = [];
+        obs.push(this.initDeployments());
+        obs.push(this.getWidgetData());
+        forkJoin(obs).subscribe(() => {
+            this.form.patchValue({
+                name: this.widget.name,
+                properties: {
+                    group: {
+                        time: this.widget.properties?.group?.time || '',
+                        type: this.widget.properties?.group?.type,
+                    },
+                    exportDeviceService: this.widget.properties?.exportDeviceService,
+                    type: this.widget.properties?.type,
+                    math: this.widget.properties?.math,
+                    threshold: this.widget.properties?.threshold,
+                    unit: this.widget.properties?.unit,
+                    format: this.widget.properties?.format,
+                    path: this.widget.properties?.path,
+                },
+            });
+            this.ready = true;
+        });
+    }
+
+    getWidgetData(): Observable<any> {
+        return this.dashboardService.getWidget(this.dashboardId, this.widgetId).pipe(map((widget: WidgetModel) => {
+            this.widget = widget;
+        }));
+    }
+
+    initDeployments(): Observable<any> {
+        this.exportService.getExports('', 9999, 0, 'name', 'asc').subscribe((exports: (ExportResponseModel | null)) => {
+            if (exports !== null) {
+                const validExports: ChartsExportMeasurementModel[] = [];
+
+                exports.instances.forEach((exportModel: ExportModel) => {
+                    if (exportModel.ID !== undefined && exportModel.Name !== undefined) {
+                        validExports.push({id: exportModel.ID, name: exportModel.Name, values: exportModel.Values});
+                    }
+                });
+                this.exportDeviceServiceOptions.set('Exports', validExports);
+            }
+        });
+
+
+        const obs: Observable<any>[] = [];
+        obs.push(this.deviceTypeService.getFullDeviceTypes());
+        obs.push(this.deviceInstancesService.getDeviceInstances('', -1, 0, 'name', 'asc'));
+        return forkJoin(obs).pipe(map(o => {
+            let deviceTypes: DeviceTypeModel[] = [];
+            let deviceInstances: DeviceInstancesPermSearchModel[] = [];
+            o.forEach((res: any[]) => {
+                if (!Array.isArray(res) || res.length === 0) {
+                    return;
+                }
+                if (res[0]['services'] !== undefined) {
+                    deviceTypes = res;
+                } else {
+                    deviceInstances = res;
+                }
+            });
+            deviceInstances.forEach(d => {
+                const type = deviceTypes.find(dt => dt.id === d.device_type_id);
+                if (type === undefined) {
+                    console.error('Got device, but no matching device type', d);
+                    return;
+                }
+                const deviceWithServices: DeviceWithServiceModel[] = [];
+                const dws: DeviceWithServiceModel = d as DeviceWithServiceModel;
+                type.services.forEach(service => {
+                    dws.service = service;
+                    deviceWithServices.push(JSON.parse(JSON.stringify(dws)));
+                });
+                if (deviceWithServices.length === 0) {
+                    return;
+                }
+                if (this.exportDeviceServiceOptions.has(d.name)) {
+                    const existing = this.exportDeviceServiceOptions.get(d.name);
+                    if (existing === undefined) {
+                        return; // Never
+                    }
+                    this.exportDeviceServiceOptions.delete(d.name);
+                    this.exportDeviceServiceOptions.set(d.name + ' (' + existing[0].id + ')', existing);
+                    this.exportDeviceServiceOptions.set(d.name + ' (' + deviceWithServices[0].id + ')', existing);
+                } else {
+                    this.exportDeviceServiceOptions.set(d.name, deviceWithServices);
+                }
+            });
+        }));
     }
 
 
@@ -111,21 +206,10 @@ export class SingleValueEditDialogComponent implements OnInit {
     }
 
     save(): void {
-        if (this.formControl.value) {
-            this.widget.properties.measurement = {
-                id: this.formControl.value.id,
-                name: this.formControl.value.name,
-                values: this.formControl.value.values
-            };
-        }
-        this.widget.properties.vAxisLabel = this.vAxisLabel;
-        this.widget.name = this.name;
-        this.widget.properties.type = this.type;
-        this.widget.properties.format = this.format;
-        this.widget.properties.threshold = this.threshold;
-        this.widget.properties.math = this.math;
-        this.widget.properties.group = this.group;
-
+        this.widget.name = this.form.get('name')?.value;
+        this.widget.properties = this.form.get('properties')?.value;
+        this.widget.properties.math = this.widget.properties.math?.replace(/ /g, '');
+        console.log(this.widget); // TODO
         this.dashboardService.updateWidget(this.dashboardId, this.widget).subscribe((resp: DashboardResponseMessageModel) => {
             if (resp.message === 'OK') {
                 this.dialogRef.close(this.widget);
@@ -133,44 +217,29 @@ export class SingleValueEditDialogComponent implements OnInit {
         });
     }
 
-    private _filter(value: string): ChartsExportMeasurementModel[] {
-        const filterValue = value.toLowerCase();
-        return this.exports.filter(option => {
-            if (option.name) {
-                return option.name.toLowerCase().indexOf(filterValue) === 0;
-            }
-            return false;
-        });
-    }
 
     displayFn(input?: ChartsExportMeasurementModel): string {
         return input ? input.name : '';
     }
 
     compare(a: any, b: any) {
-        return a.InstanceID === b.InstanceID && a.Name === b.Name && a.Path === b.Path;
-    }
-
-    compareStrings(a: any, b: any) {
-        return a === b;
-    }
-
-
-    optionSelected(input: MatAutocompleteSelectedEvent ) {
-        this.vAxisValues = input.option.value.values;
-        this.widget.properties.vAxis = this.vAxisValues[0];
-    }
-
-    autoCompleteClosed() {
-        if (typeof this.formControl.value === 'string') {
-            this.disableSave = true;
-            this.vAxisValues = [];
-            this.formControl.setErrors({'valid': false});
-        } else {
-            this.disableSave = false;
-            this.formControl.updateValueAndValidity();
+        if (a === undefined || a === null || b === undefined || b === null) {
+            return a === b;
         }
+        if (a.id !== undefined && a.service?.id !== undefined) {
+            return a.id === b.id && a.service.id === b.service.id;
+        }
+        if (a.id !== undefined) {
+            return b.id !== undefined && a.id === b.id;
+        }
+        return a.InstanceID === b.InstanceID && a.Name === b.Name;
+    }
 
+    getExportDeviceServiceOptionViewValue(v: DeviceWithServiceModel | ChartsExportMeasurementModel | null | undefined): string {
+        if (v === null || v === undefined) {
+            return '';
+        }
+        return (v as DeviceWithServiceModel).service?.name || v.name;
     }
 
 }

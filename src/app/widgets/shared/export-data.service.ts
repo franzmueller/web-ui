@@ -21,14 +21,19 @@ import {
     LastValuesRequestElementModel, LastValuesRequestElementModelV3,
     QueriesRequestElementModel,
     QueriesRequestElementModelV3,
-    TimeValuePairModel
+    TimeValuePairModel,
+    ContentVariableWithPath,
 } from './export-data.model';
 import {HttpClient} from '@angular/common/http';
+import {DeviceTypeContentVariableModel} from '../../modules/metadata/device-types-overview/shared/device-type.model';
 
 @Injectable({
     providedIn: 'root'
 })
 export class ExportDataService {
+    STRUCTURE = 'https://schema.org/StructuredValue';
+
+    groupTypes = ['mean', 'sum', 'count', 'median', 'min', 'max', 'first', 'last', 'difference-first', 'difference-last', 'difference-min', 'difference-max', 'difference-count', 'difference-mean', 'difference-sum', 'difference-median'];
 
     constructor(private http: HttpClient) {
     }
@@ -64,5 +69,24 @@ export class ExportDataService {
 
     getLastValuesV3(requestElements: LastValuesRequestElementModelV3[]): Observable<TimeValuePairModel[]> {
         return this.http.post<TimeValuePairModel[]>(environment.timescaleAPIURL + '/last-values', requestElements);
+    }
+
+    parseContentVariable(c: DeviceTypeContentVariableModel, prefix: string): ContentVariableWithPath[] {
+        if (prefix.length > 0) {
+            prefix += '.';
+        }
+        prefix += c.name;
+        const cvwp: ContentVariableWithPath = c as ContentVariableWithPath;
+        cvwp.path = prefix;
+        if (c.type !== this.STRUCTURE) {
+            return [cvwp];
+        }
+        const res:  ContentVariableWithPath[] = [];
+        c.sub_content_variables?.forEach(sub => res.push(...this.parseContentVariable(sub, prefix)));
+        return res;
+    }
+
+    getGroupTypes(): string[] {
+        return JSON.parse(JSON.stringify(this.groupTypes)); // copy
     }
 }

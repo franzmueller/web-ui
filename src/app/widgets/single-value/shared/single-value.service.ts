@@ -24,7 +24,8 @@ import {DashboardManipulationEnum} from '../../../modules/dashboard/shared/dashb
 import {ErrorHandlerService} from '../../../core/services/error-handler.service';
 import {MatDialog, MatDialogConfig} from '@angular/material/dialog';
 import {ExportDataService} from '../../shared/export-data.service';
-import {QueriesRequestElementModel} from '../../shared/export-data.model';
+import {QueriesRequestElementModelV3} from '../../shared/export-data.model';
+import {DeviceWithServiceModel} from '../../charts/export/shared/charts-export-properties.model';
 
 @Injectable({
     providedIn: 'root'
@@ -55,16 +56,20 @@ export class SingleValueService {
 
     getSingleValue(widget: WidgetModel): Observable<SingleValueModel> {
         return new Observable<SingleValueModel>((observer) => {
-            const m = widget.properties.measurement;
-            const name = widget.properties.vAxis ? widget.properties.vAxis.Name : '';
+            const m = widget.properties.exportDeviceService;
             if (m) {
-                const requestPayload: QueriesRequestElementModel = {
-                    measurement: m.id,
+                const requestPayload: QueriesRequestElementModelV3 = {
                     columns: [{
-                        name: name,
+                        name: widget.properties.path,
                         math: widget.properties.math !== '' ? widget.properties.math : undefined,
                     }],
-                };
+                } as QueriesRequestElementModelV3;
+                if ((m as DeviceWithServiceModel).service !== undefined) {
+                    requestPayload.deviceId = m.id;
+                    requestPayload.serviceId = (m as DeviceWithServiceModel).service.id;
+                } else {
+                    requestPayload.exportId = m.id;
+                }
                 if (widget.properties.group !== undefined && widget.properties.group.time !== ''
                     && widget.properties.group.type !== undefined && widget.properties.group.type !== '') {
                     requestPayload.time = {last: widget.properties.group.time};
@@ -73,7 +78,7 @@ export class SingleValueService {
                 } else {
                     requestPayload.limit = 1;
                 }
-                this.exportDataService.query([requestPayload]).subscribe(pairs => {
+                this.exportDataService.queryV3([requestPayload]).subscribe(pairs => {
                     pairs = pairs[0];
                     let value: any = '';
                     let type = widget.properties.type || '';

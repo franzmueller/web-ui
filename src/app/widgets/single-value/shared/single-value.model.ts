@@ -14,6 +14,11 @@
  * limitations under the License.
  */
 
+import {
+    ChartsExportMeasurementModel,
+    DeviceWithServiceModel
+} from '../../charts/export/shared/charts-export-properties.model';
+
 export interface SingleValueModel {
     value: (number | string);
     type: string;
@@ -23,5 +28,7 @@ export interface SingleValuePropertiesModel {
     type?: string;
     format?: string;
     math?: string;
+    path?: string;
+    exportDeviceService?: DeviceWithServiceModel | ChartsExportMeasurementModel;
 }
 

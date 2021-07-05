@@ -32,20 +32,14 @@ import {ChartsExportRangeTimeTypeEnum} from '../shared/charts-export-range-time-
 import {MatTableDataSource} from '@angular/material/table';
 import {MAT_DIALOG_DATA, MatDialogRef} from '@angular/material/dialog';
 import {forkJoin, Observable, of} from 'rxjs';
-import {
-    DeviceTypeContentVariableModel,
-    DeviceTypeModel
-} from '../../../../modules/metadata/device-types-overview/shared/device-type.model';
+import {DeviceTypeModel} from '../../../../modules/metadata/device-types-overview/shared/device-type.model';
 import {DeviceInstancesService} from '../../../../modules/devices/device-instances/shared/device-instances.service';
 import {DeviceTypeService} from '../../../../modules/metadata/device-types-overview/shared/device-type.service';
 import {DeviceInstancesPermSearchModel} from '../../../../modules/devices/device-instances/shared/device-instances.model';
 import {MatOption} from '@angular/material/core';
 import {map} from 'rxjs/internal/operators';
+import {ExportDataService} from '../../../shared/export-data.service';
 
-
-interface ContentVariableWithPath extends DeviceTypeContentVariableModel {
-    path: string;
-}
 
 @Component({
     templateUrl: './charts-export-edit-dialog.component.html',
@@ -62,13 +56,13 @@ export class ChartsExportEditDialogComponent implements OnInit {
     chartTypes = ['LineChart', 'ColumnChart', 'ScatterChart'];
     timeRangeEnum = ChartsExportRangeTimeTypeEnum;
     timeRangeTypes = [this.timeRangeEnum.Relative, this.timeRangeEnum.Absolute];
-    groupTypes = ['mean', 'sum', 'count', 'median', 'min', 'max', 'first', 'last', 'difference-first', 'difference-last', 'difference-min', 'difference-max', 'difference-count', 'difference-mean', 'difference-sum', 'difference-median'];
+    groupTypes: string[] = [];
     groupTypeIsDifference = false;
 
     displayedColumns: string[] = ['select', 'exportName', 'valueName', 'valueType', 'valueAlias', 'color', 'math', 'conversions', 'filterType', 'filterValue', 'tags', 'displayOnSecondVAxis', 'duplicate-delete'];
     dataSource = new MatTableDataSource<ChartsExportVAxesModel>();
     selection = new SelectionModel<ChartsExportVAxesModel>(true, []);
-    exportTags: Map<string, Map<string, {value: string; parent: string}[]>> = new Map();
+    exportTags: Map<string, Map<string, { value: string; parent: string }[]>> = new Map();
 
     STRING = 'https://schema.org/Text';
     INTEGER = 'https://schema.org/Integer';
@@ -85,12 +79,14 @@ export class ChartsExportEditDialogComponent implements OnInit {
                 private _formBuilder: FormBuilder,
                 private deviceInstancesService: DeviceInstancesService,
                 private deviceTypeService: DeviceTypeService,
+                private exportDataService: ExportDataService,
                 @Inject(MAT_DIALOG_DATA) data: { dashboardId: string, widgetId: string }) {
         this.dashboardId = data.dashboardId;
         this.widgetId = data.widgetId;
     }
 
     ngOnInit() {
+        this.groupTypes = this.exportDataService.getGroupTypes();
         this.typeMap.set(this.STRING, 'string');
         this.typeMap.set(this.INTEGER, 'int');
         this.typeMap.set(this.FLOAT, 'float');
@@ -324,27 +320,12 @@ export class ChartsExportEditDialogComponent implements OnInit {
         newSelection.forEach(row => this.selection.select(row));
     }
 
-    parseContentVariable(c: DeviceTypeContentVariableModel, prefix: string): ContentVariableWithPath[] {
-        if (prefix.length > 0) {
-            prefix += '.';
-        }
-        prefix += c.name;
-        const cvwp: ContentVariableWithPath = c as ContentVariableWithPath;
-        cvwp.path = prefix;
-        if (c.type !== this.STRUCTURE) {
-            return [cvwp];
-        }
-        const res:  ContentVariableWithPath[] = [];
-        c.sub_content_variables?.forEach(sub => res.push(...this.parseContentVariable(sub, prefix)));
-        return res;
-    }
-
     selectionDeviceChange(selectedDeviceServices: DeviceWithServiceModel[]) {
         const newData: ChartsExportVAxesModel[] = [];
         const newSelection: ChartsExportVAxesModel[] = [];
         selectedDeviceServices.forEach((selectedDeviceService: DeviceWithServiceModel) => {
             selectedDeviceService.service.outputs.forEach(o => {
-                const paths = this.parseContentVariable(o.content_variable, '');
+                const paths = this.exportDataService.parseContentVariable(o.content_variable, '');
                 paths.forEach(p => {
                     const type = this.typeMap.get(p.type || '');
                     if (type === undefined) {

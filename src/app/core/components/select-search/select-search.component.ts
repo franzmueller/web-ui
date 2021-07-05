@@ -30,7 +30,7 @@ import {
 import {MatSelect, MatSelectChange} from '@angular/material/select';
 import {MatFormFieldControl} from '@angular/material/form-field';
 import {Observable, Subject} from 'rxjs';
-import {ControlValueAccessor, FormControl, FormControlName, NgControl} from '@angular/forms';
+import {ControlValueAccessor, FormControl, NgControl} from '@angular/forms';
 import {coerceBooleanProperty} from '@angular/cdk/coercion';
 import {ErrorStateMatcher, MatOption} from '@angular/material/core';
 import {MatInput} from '@angular/material/input';
@@ -67,7 +67,7 @@ export class SelectSearchComponent implements MatFormFieldControl<any>, ControlV
         if (!this.select) {
             return false;
         }
-        return this.select.ngControl.errors !== null && !!this.select.ngControl.touched;
+        return this.select.ngControl?.errors !== null && !!this.select.ngControl?.touched;
     }
 
     @Input()

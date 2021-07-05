@@ -28,19 +28,19 @@
             <div *ngIf="configured && ready && dataReady" fxFill fxLayout="row" fxLayoutAlign="center center">
                 <div [fittext] [maxFontSize]="widget.properties.threshold ? widget.properties.threshold : 128">
                     <span *ngIf="sv.type === 'String'">
-                        {{sv.value}} {{widget.properties.vAxisLabel}}
+                        {{sv.value}} {{widget.properties.unit}}
                     </span>
                     <span *ngIf="widget.properties.type === 'Number'">
-                        {{sv.value | number: widget.properties.format}} {{widget.properties.vAxisLabel}}
+                        {{sv.value | number: widget.properties.format}} {{widget.properties.unit}}
                     </span>
                     <span *ngIf="widget.properties.type === 'Date'">
-                        {{sv.value | date: widget.properties.format}} {{widget.properties.vAxisLabel}}
+                        {{sv.value | date: widget.properties.format}} {{widget.properties.unit}}
                     </span>
                     <span *ngIf="widget.properties.type === 'Currency'">
-                            {{sv.value | currency: widget.properties.format}} {{widget.properties.vAxisLabel}}
+                            {{sv.value | currency: widget.properties.format}} {{widget.properties.unit}}
                     </span>
                     <span *ngIf="widget.properties.type === 'Percent'">
-                            {{sv.value | percent: widget.properties.format}} {{widget.properties.vAxisLabel}}
+                            {{sv.value | percent: widget.properties.format}} {{widget.properties.unit}}
                     </span>
                 </div>
             </div>

@@ -58,8 +58,8 @@
                 <senergy-select-search [multiple]="true"
                                        [compareWith]="compareDeviceWithService" formControlName="devices"
                                        (selectionChange)="selectionDeviceChange($event.value)"
-                                       [options]="deviceServiceList" useOptionViewProperty="service.name">
-                [getTriggerValue]="getDeviceServiceTrigger">
+                                       [options]="deviceServiceList" useOptionViewProperty="service.name"
+                                       [getTriggerValue]="getDeviceServiceTrigger">
                 </senergy-select-search>
             </mat-form-field>
             <table>

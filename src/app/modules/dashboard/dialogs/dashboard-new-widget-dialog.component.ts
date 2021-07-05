@@ -19,7 +19,6 @@ import {MatDialogRef} from '@angular/material/dialog';
 import {WidgetModel} from '../shared/dashboard-widget.model';
 import {DashboardTypesEnum} from '../shared/dashboard-types.enum';
 import {Observable} from 'rxjs';
-import {SingleValueRequirementsService} from '../../../widgets/single-value/shared/single-value-requirements.service';
 import {EnergyPredictionRequirementsService} from '../../../widgets/energy-prediction/shared/energy-prediction-requirements.service';
 
 export interface Types {
@@ -58,9 +57,8 @@ export class DashboardNewWidgetDialogComponent {
         {
             value: DashboardTypesEnum.SingleValue,
             viewValue: 'Single Value',
-            requirementsService: this.singleValueRequirementsService,
             disabled: false,
-            tooltip: SingleValueRequirementsService.requirement
+            tooltip: '',
         },
         // {value: DashboardTypesEnum.MultiValue, viewValue: 'Multi Value', disabled: false, tooltip: ''},
         {
@@ -124,7 +122,6 @@ export class DashboardNewWidgetDialogComponent {
     ];
 
     constructor(private dialogRef: MatDialogRef<DashboardNewWidgetDialogComponent>,
-                private singleValueRequirementsService: SingleValueRequirementsService,
                 private energyPredictionRequirementsService: EnergyPredictionRequirementsService,
     ) {
         this.types.forEach(t => this.checkRequirements(t));

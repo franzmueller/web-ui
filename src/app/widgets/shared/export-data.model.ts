@@ -15,6 +15,8 @@
  */
 
 
+import {DeviceTypeContentVariableModel} from '../../modules/metadata/device-types-overview/shared/device-type.model';
+
 export interface TimeValuePairModel {
     time: string | null;
     value: string | number | boolean | null;
@@ -72,4 +74,8 @@ export interface QueriesRequestTimeModel {
     end?: string;
     last?: string;
     start?: string;
+}
+
+export interface ContentVariableWithPath extends DeviceTypeContentVariableModel {
+    path: string;
 }
